@@ -62,7 +62,7 @@ All routes are prefixed with `/api`. Wallet and transfer routes require an `Auth
 
 ## Data Model
 
-- **User** — has many wallets
+- **User** — has one wallet
 - **Wallet** — belongs to a user, has a balance/currency, has many transactions
 - **Transaction** — belongs to a wallet, records amount/type/note
 
