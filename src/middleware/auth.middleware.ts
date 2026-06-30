@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/env';
+import { ZodType } from 'zod';
 
 
 export interface AuthRequest extends Request {
@@ -21,3 +22,18 @@ export const protect = (req: AuthRequest, res: Response, next: NextFunction) => 
         res.status(401).json({ success: false, message: 'Invalid token ' + error.message });
     }
 }
+
+export const validate = (schema: ZodType) => {
+    return (req: Request, res: Response, next: NextFunction) => {
+        const result = schema.safeParse(req.body);
+        if (!result.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation failed',
+                errors: result.error.flatten().fieldErrors,
+            });
+        }
+        req.body = result.data;
+        next();
+    };
+};
