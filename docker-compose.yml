@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:14
+    restart: always
+    environment:
+      POSTGRES_USER: payflow_user
+      POSTGRES_PASSWORD: payflow_pass
+      POSTGRES_DB: transactions_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    restart: always
+    ports:
+      - "3002:3002"
+    environment:
+      DATABASE_URL: "postgresql://payflow_user:payflow_pass@db:5432/transactions_db?schema=public"
+      JWT_SECRET: supersecretkey123
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
