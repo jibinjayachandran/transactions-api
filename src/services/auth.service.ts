@@ -1,11 +1,11 @@
-import { PrismaClient } from "@prisma/client";
+import prisma  from "../lib/prisma";
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { JWT_SECRET } from '../config/env';
 
 
-const prisma = new PrismaClient();
+
 
 const ACCESS_TOKEN_EXPIRY = '5m';
 const REFRESH_TOKEN_EXPIRY = 15; // 15 minutes 

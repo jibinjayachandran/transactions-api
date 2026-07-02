@@ -7,7 +7,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "dotenv -e .env.test -- jest",
+    "test": "dotenv -e .env.test -- jest --runInBand",
     "dev": "nodemon --exec ts-node src/index.ts"
   },
   "dependencies": {

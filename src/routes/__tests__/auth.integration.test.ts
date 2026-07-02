@@ -8,6 +8,8 @@ const prisma = new PrismaClient();
 describe('POST api/auth/register', () => {
     // clean up the users table before each test so tests don't interfere with each other
     beforeEach(async () => {
+        await prisma.transaction.deleteMany();
+        await prisma.wallet.deleteMany();
         await prisma.refreshToken.deleteMany();
         await prisma.user.deleteMany();
     })

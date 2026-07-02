@@ -1,6 +1,7 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma} from "@prisma/client";
+import prisma  from "../lib/prisma";
 
-const prisma = new PrismaClient();
+
 
 export const transferFunds = async (
     fromWalletId: string,

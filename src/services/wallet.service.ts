@@ -1,6 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma  from "../lib/prisma";
 
-const prisma = new PrismaClient();
 
 export const createWalletForUser = async (userId: string) => {
     const existing = await prisma.wallet.findFirst({ where: { userId } });
