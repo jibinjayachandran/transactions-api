@@ -1,5 +1,6 @@
-import { Prisma} from "@prisma/client";
-import prisma  from "../lib/prisma";
+import { Prisma } from "@prisma/client";
+import prisma from "../lib/prisma";
+import redis from "../lib/redis";
 
 
 
@@ -12,7 +13,7 @@ export const transferFunds = async (
     if (!amount || amount <= 0) throw new Error('Amount must be positive');
     if (fromWalletId === toWalletId) throw new Error('Cannot transfer to the same wallet');
 
-    return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const transaction = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const fromWallet = await tx.wallet.findUnique({ where: { id: fromWalletId } });
         if (!fromWallet) throw new Error('Source wallet not found');
         if (fromWallet.userId !== userId) throw new Error('Not authorized');
@@ -36,6 +37,11 @@ export const transferFunds = async (
         });
         return transaction;
     });
+
+    await redis.del(`wallet:balance:${fromWalletId}`);
+    await redis.del(`wallet:balance:${toWalletId}`);
+
+    return transaction;
 }
 
 export const getTransactionHistory = async (
