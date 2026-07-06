@@ -31,7 +31,7 @@ export const loginUser = async (email: string, password: string) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw new Error('Invalid credentials');
 
-    const accessToken = generateAccessToken(user.id);
+    const accessToken = await generateAccessToken(user.id);
     const refreshToken = generateRefreshToken();
     await saveRefreshToken(user.id, refreshToken);
 
@@ -47,7 +47,7 @@ export const refreshTokens = async (refreshToken: string) => {
     }
     await prisma.refreshToken.delete({ where: { token: refreshToken } });
 
-    const accessToken = generateAccessToken(stored.userId);
+    const accessToken = await generateAccessToken(stored.userId);
     const newRefreshToken = generateRefreshToken();
     await saveRefreshToken(stored.userId, newRefreshToken);
 
@@ -56,7 +56,7 @@ export const refreshTokens = async (refreshToken: string) => {
 }
 
 export const logoutUser = async (refreshToken: string, accessToken: string) => {
-    const result = await prisma.refreshToken.deleteMany({ where: { token:refreshToken } });
+    const result = await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
     if (result.count === 0) throw new Error('Invalid refresh token');
 
     await blicklistAccessToken(accessToken);
@@ -64,14 +64,16 @@ export const logoutUser = async (refreshToken: string, accessToken: string) => {
 
 export const logoutAllDevices = async (userId: string) => {
     await prisma.refreshToken.deleteMany({ where: { userId } });
+    await redis.incr(`tokenVersion:${userId}`)
 }
 
 
 //helpers
 
-const generateAccessToken = (userId: string) => {
+const generateAccessToken = async (userId: string) => {
     const jti = crypto.randomUUID();
-    return jwt.sign({ userId: userId, jti }, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const tokenVersion = await getTokenVersion(userId);
+    return jwt.sign({ userId: userId, jti,tokenVersion }, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
 }
 
 const generateRefreshToken = () => {
@@ -97,4 +99,11 @@ const blicklistAccessToken = async (token: string) => {
     if (ttlSeconds <= 0) return; //already expired naturally , nothing to do.
 
     await redis.set(`blocklist:${decoded.jti}`, '1', 'EX', ttlSeconds);
+}
+
+const getTokenVersion = async (userId: string) => {
+    const version = await redis.get(`tokenVersion:${userId}`);
+    if (version) return parseInt(version, 10);
+    await redis.set(`tokenVersion:${userId}`, '1');
+    return 1;
 }

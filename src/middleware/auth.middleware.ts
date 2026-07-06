@@ -16,10 +16,15 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
         return;
     }
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as unknown as { userId: string; jti: string };
+        const decoded = jwt.verify(token, JWT_SECRET) as unknown as { userId: string; jti: string, tokenVersion: number };
         const isBlocklisted = await redis.exists(`blocklist:${decoded.jti}`);
-        if(isBlocklisted){
-            res.status(401).json({success:false,message:'Token has been revoked.'});
+        if (isBlocklisted) {
+            res.status(401).json({ success: false, message: 'Token has been revoked.' });
+            return;
+        }
+        const currentVersion = await redis.get(`tokenVersion:${decoded.userId}`);
+        if (currentVersion && parseInt(currentVersion, 10) !== decoded.tokenVersion) {
+            res.status(401).json({ success: false, message: 'Token has been revoked.' });
             return;
         }
         req.userId = decoded.userId;
