@@ -1,8 +1,10 @@
-import prisma  from "../lib/prisma";
+import prisma from "../lib/prisma";
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { JWT_SECRET } from '../config/env';
+import { decode } from "punycode";
+import redis from "../lib/redis";
 
 
 
@@ -53,9 +55,11 @@ export const refreshTokens = async (refreshToken: string) => {
 
 }
 
-export const logoutUser = async (token: string) => {
-    const result = await prisma.refreshToken.deleteMany({ where: { token } });
+export const logoutUser = async (refreshToken: string, accessToken: string) => {
+    const result = await prisma.refreshToken.deleteMany({ where: { token:refreshToken } });
     if (result.count === 0) throw new Error('Invalid refresh token');
+
+    await blicklistAccessToken(accessToken);
 }
 
 export const logoutAllDevices = async (userId: string) => {
@@ -66,7 +70,8 @@ export const logoutAllDevices = async (userId: string) => {
 //helpers
 
 const generateAccessToken = (userId: string) => {
-    return jwt.sign({ userId: userId }, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const jti = crypto.randomUUID();
+    return jwt.sign({ userId: userId, jti }, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
 }
 
 const generateRefreshToken = () => {
@@ -80,4 +85,16 @@ const saveRefreshToken = async (userId: string, token: string) => {
     await prisma.refreshToken.create({
         data: { token, userId, expiresAt }
     });
+}
+
+const blicklistAccessToken = async (token: string) => {
+    // Signature already verified upstream by `protect` middleware —
+    // decode is enough here, no need to re-verify.
+    const decoded = jwt.decode(token) as { jti?: string, exp?: number } | null;
+    if (!decoded?.jti || !decoded?.exp) return;
+
+    const ttlSeconds = decoded.exp - Math.floor(Date.now() / 1000);
+    if (ttlSeconds <= 0) return; //already expired naturally , nothing to do.
+
+    await redis.set(`blocklist:${decoded.jti}`, '1', 'EX', ttlSeconds);
 }
